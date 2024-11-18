@@ -9,6 +9,8 @@ from utils.create_obstacles import create_obstacles
 import numpy as np
 from scipy.optimize import minimize, Bounds
 import time
+from numba import jit
+from multiprocessing import Pool
 
 SIM_TIME = 8.
 TIMESTEP = 0.1
@@ -52,20 +54,64 @@ def simulate(filename):
         robot_state_history, obstacles, ROBOT_RADIUS, NUMBER_OF_TIMESTEPS, SIM_TIME, filename)
 
 
+@jit(nopython=True)
+def total_collision_cost(robot, obstacles):
+    """Vectorized collision cost calculation"""
+    total_cost = 0.0
+    n_obstacles = len(obstacles)
+    
+    for i in range(HORIZON_LENGTH):
+        rob = robot[2 * i: 2 * i + 2]
+        obs_positions = np.array([obstacles[j][2 * i: 2 * i + 2] for j in range(n_obstacles)])
+        
+        # Vectorized distance calculation
+        distances = np.sqrt(np.sum((obs_positions - rob) ** 2, axis=1))
+        costs = Qc / (1 + np.exp(kappa * (distances - 2*ROBOT_RADIUS)))
+        total_cost += np.sum(costs)
+    
+    return total_cost
+
+def predict_obstacle_positions(obstacles):
+    """Vectorized obstacle prediction"""
+    n_obstacles = np.shape(obstacles)[1]
+    
+    # Reshape obstacles for vectorized operations
+    positions = obstacles[:2, :].T
+    velocities = obstacles[2:, :].T
+    
+    # Create prediction matrix
+    prediction_matrix = np.vstack([np.eye(2)] * HORIZON_LENGTH)
+    
+    # Vectorized prediction calculation
+    predictions = []
+    for i in range(n_obstacles):
+        u = prediction_matrix @ velocities[i]
+        pred = update_state(positions[i], u, NMPC_TIMESTEP)
+        predictions.append(pred)
+    
+    return predictions
+
 def compute_velocity(robot_state, obstacle_predictions, xref):
-    """
-    Computes control velocity of the copter
-    """
-    # u0 = np.array([0] * 2 * HORIZON_LENGTH)
-    u0 = np.random.rand(2*HORIZON_LENGTH)
-    def cost_fn(u): return total_cost(
-        u, robot_state, obstacle_predictions, xref)
-
-    bounds = Bounds(lower_bound, upper_bound)
-
-    res = minimize(cost_fn, u0, method='SLSQP', bounds=bounds)
-    velocity = res.x[:2]
-    return velocity, res.x
+    """Optimized velocity computation using multiple starting points"""
+    n_attempts = 4  # Number of parallel optimization attempts
+    
+    def parallel_optimize(u0):
+        cost_fn = lambda u: total_cost(u, robot_state, obstacle_predictions, xref)
+        bounds = Bounds(lower_bound, upper_bound)
+        return minimize(cost_fn, u0, method='SLSQP', bounds=bounds)
+    
+    # Generate multiple random starting points
+    u0_attempts = [np.random.rand(2*HORIZON_LENGTH) for _ in range(n_attempts)]
+    
+    # Parallel optimization
+    with Pool() as pool:
+        results = pool.map(parallel_optimize, u0_attempts)
+    
+    # Select best result
+    best_result = min(results, key=lambda x: x.fun)
+    velocity = best_result.x[:2]
+    
+    return velocity, best_result.x
 
 
 def compute_xref(start, goal, number_of_steps, timestep):
@@ -89,38 +135,6 @@ def total_cost(u, robot_state, obstacle_predictions, xref):
 
 def tracking_cost(x, xref):
     return np.linalg.norm(x-xref)
-
-
-def total_collision_cost(robot, obstacles):
-    total_cost = 0
-    for i in range(HORIZON_LENGTH):
-        for j in range(len(obstacles)):
-            obstacle = obstacles[j]
-            rob = robot[2 * i: 2 * i + 2]
-            obs = obstacle[2 * i: 2 * i + 2]
-            total_cost += collision_cost(rob, obs)
-    return total_cost
-
-
-def collision_cost(x0, x1):
-    """
-    Cost of collision between two robot_state
-    """
-    d = np.linalg.norm(x0 - x1)
-    cost = Qc / (1 + np.exp(kappa * (d - 2*ROBOT_RADIUS)))
-    return cost
-
-
-def predict_obstacle_positions(obstacles):
-    obstacle_predictions = []
-    for i in range(np.shape(obstacles)[1]):
-        obstacle = obstacles[:, i]
-        obstacle_position = obstacle[:2]
-        obstacle_vel = obstacle[2:]
-        u = np.vstack([np.eye(2)] * HORIZON_LENGTH) @ obstacle_vel
-        obstacle_prediction = update_state(obstacle_position, u, NMPC_TIMESTEP)
-        obstacle_predictions.append(obstacle_prediction)
-    return obstacle_predictions
 
 
 def update_state(x0, u, timestep):
