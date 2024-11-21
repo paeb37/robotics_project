@@ -49,4 +49,4 @@ class KKTSolver:
         # Solve system
         solution = np.linalg.solve(KKT, rhs)
         
-        return solution[:n]  # Return only primal variables 
+        return solution[:n]  # Return only primal variables
