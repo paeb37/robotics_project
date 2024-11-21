@@ -47,15 +47,17 @@ class SippPlanner(SippGraph):
     def setup_optimization(self):
         """Setup optimization problem for KKT solver"""
         # Objective: minimize distance to goal
-        Q = np.eye(2)
-        c = -np.array(self.goal)
+        Q = np.eye(2)  # Positive definite quadratic term
+        c = -2 * np.array(self.goal)  # Linear term
         self.kkt_solver.set_objective(Q, c)
         
         # Add collision avoidance constraints
         for obs in self.get_obstacles():
-            A = np.array([[1, 0], [0, 1]])
-            b = np.array([obs.x + 0.5, obs.y + 0.5])
-            self.kkt_solver.add_constraint(A, b, 'inequality')
+            # Add inequality constraints for obstacle avoidance
+            G = np.array([[1, 0], [0, 1], [-1, 0], [0, -1]])
+            h = np.array([obs.x + 0.5, obs.y + 0.5, -(obs.x - 0.5), -(obs.y - 0.5)])
+            for i in range(len(G)):
+                self.kkt_solver.add_constraint(G[i:i+1], h[i:i+1], 'inequality')
             
     def compute_plan(self):
         """Modified to use KKT solver"""

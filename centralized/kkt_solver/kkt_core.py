@@ -25,28 +25,38 @@ class KKTSolver:
     
     def solve(self):
         """Solve KKT system using direct method"""
-        # Construct KKT matrix and vector
         n = self.n_variables
-        m = sum(c['matrix'].shape[0] for c in self.constraints)
         
+        # Count equality and inequality constraints separately
+        n_eq = sum(1 for c in self.constraints if c['type'] == 'equality')
+        n_ineq = sum(1 for c in self.constraints if c['type'] == 'inequality')
+        m = n_eq + n_ineq
+        
+        if m == 0:  # No constraints
+            return -np.linalg.solve(self.objective['Q'], self.objective['c'])
+            
         # Build KKT matrix
         KKT = np.zeros((n + m, n + m))
         KKT[:n, :n] = self.objective['Q']
+        
+        # Build RHS vector
+        rhs = np.zeros(n + m)
+        rhs[:n] = -self.objective['c']
         
         # Add constraint matrices
         row_idx = n
         for constraint in self.constraints:
             A = constraint['matrix']
+            b = constraint['vector']
             rows = A.shape[0]
+            
             KKT[row_idx:row_idx+rows, :n] = A
             KKT[:n, row_idx:row_idx+rows] = A.T
+            rhs[row_idx:row_idx+rows] = b
             row_idx += rows
             
-        # Build RHS vector
-        rhs = np.zeros(n + m)
-        rhs[:n] = -self.objective['c']
-        
-        # Solve system
-        solution = np.linalg.solve(KKT, rhs)
-        
-        return solution[:n]  # Return only primal variables
+        try:
+            solution = np.linalg.solve(KKT, rhs)
+            return solution[:n]  # Return only primal variables
+        except np.linalg.LinAlgError:
+            return None
