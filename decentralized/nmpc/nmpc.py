@@ -256,7 +256,3 @@ def device_collision_cost(r_x, r_y, o_x, o_y):
     else:
         diff = (safe_distance - d) / safe_distance
         return Qc * diff * diff
-
-
-if __name__ == "__main__":
-    simulate("output.png")
