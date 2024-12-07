@@ -5,6 +5,8 @@ __pycache__/
 *.avi
 # C extensions
 *.so
+*.gitignore
+*DS_Store
 
 # Distribution / packaging
 .Python
