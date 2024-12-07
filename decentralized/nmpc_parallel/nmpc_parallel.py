@@ -6,7 +6,9 @@ author: Ashwin Bose (atb033@github.com)
 from utils.multi_robot_plot import plot_robot_and_obstacles
 from utils.create_obstacles import create_obstacles
 import numpy as np
+import numpy as np
 from numba import cuda
+import math
 from scipy.optimize import minimize, Bounds
 import time
 
@@ -27,11 +29,12 @@ NMPC_TIMESTEP = 0.3
 upper_bound = [(1/np.sqrt(2)) * VMAX] * HORIZON_LENGTH * 2
 lower_bound = [-(1/np.sqrt(2)) * VMAX] * HORIZON_LENGTH * 2
 
+
 def simulate(filename):
     obstacles = create_obstacles(SIM_TIME, NUMBER_OF_TIMESTEPS)
 
     start = np.array([5, 5])
-    p_desired = np.array([7, 7])
+    p_desired = np.array([5, 5])
 
     robot_state = start
     robot_state_history = np.empty((4, NUMBER_OF_TIMESTEPS))
@@ -46,7 +49,7 @@ def simulate(filename):
         # compute velocity using nmpc
         vel, velocity_profile = compute_velocity(
             robot_state, obstacle_predictions, xref)
-        robot_state = update_state_host(robot_state, vel, TIMESTEP)
+        robot_state = update_state(robot_state, vel, TIMESTEP)
         robot_state_history[:2, i] = robot_state
 
     end_time = time.time()
@@ -72,6 +75,7 @@ def compute_velocity(robot_state, obstacle_predictions, xref):
     velocity = res.x[:2]
     return velocity, res.x
 
+
 def compute_xref(start, goal, number_of_steps, timestep):
     dir_vec = (goal - start)
     norm = np.linalg.norm(dir_vec)
@@ -84,7 +88,7 @@ def compute_xref(start, goal, number_of_steps, timestep):
 
 
 def total_cost(u, robot_state, obstacle_predictions, xref):
-    x_robot = update_state_host(robot_state, u, NMPC_TIMESTEP)
+    x_robot = update_state(robot_state, u, NMPC_TIMESTEP)
     c1 = tracking_cost(x_robot, xref)
     c2 = total_collision_cost(x_robot, obstacle_predictions)
     total = c1 + c2
@@ -114,52 +118,93 @@ def collision_cost(x0, x1):
     cost = Qc / (1 + np.exp(kappa * (d - 2*ROBOT_RADIUS)))
     return cost
 
+# def predict_obstacle_positions(obstacles):
+#     obstacle_predictions = []
+#     for i in range(np.shape(obstacles)[1]):
+#         obstacle = obstacles[:, i]
+#         obstacle_position = obstacle[:2]
+#         obstacle_vel = obstacle[2:]
+#         u = np.vstack([np.eye(2)] * HORIZON_LENGTH) @ obstacle_vel
+#         obstacle_prediction = update_state(obstacle_position, u, NMPC_TIMESTEP)
+#         obstacle_predictions.append(obstacle_prediction)
+#     return obstacle_predictions
+        
 @cuda.jit
-def update_state_cuda(x0, u, timestep, new_state):
-    N = u.shape[0] // 2
-    idx = cuda.grid(1)  # Get the thread index
-    if idx < N:  # Ensure we don't go out of bounds
-        lower_triangular_ones_matrix = cuda.to_device(np.tril(np.ones((N, N))))
-        kron = cuda.to_device(np.kron(lower_triangular_ones_matrix, np.eye(2)))
-
-        new_state[idx, :2] = (np.eye(2) @ x0 + kron @ u * timestep)[:2]
-
-def update_state_host(x0, u, timestep):
-    N = len(u) // 2
-    new_state = np.zeros((HORIZON_LENGTH, 2))  # Adjust shape as needed
-    d_x0 = cuda.to_device(x0)
-    d_u = cuda.to_device(u)
-    d_new_state = cuda.to_device(new_state)
-
-    threads_per_block = 32
-    blocks_per_grid = (N + (threads_per_block - 1)) // threads_per_block
-    update_state_cuda[blocks_per_grid, threads_per_block](d_x0, d_u, timestep, d_new_state)
-
-    return d_new_state.copy_to_host()  # Copy results back to host
-
-@cuda.jit
-def predict_obstacle_positions_cuda(obstacles, obstacle_predictions, NMPC_TIMESTEP):
-    idx = cuda.grid(1)  # Get the thread index
-    if idx < obstacles.shape[1]:  # Ensure we don't go out of bounds
-        obstacle = obstacles[:, idx]
+def predict_obstacle_positions_cuda(obstacles, obstacle_predictions, nmpc_timestep):
+    """
+    CUDA kernel for predicting obstacle positions
+    
+    Args:
+    - obstacles: Input obstacle data
+    - obstacle_predictions: Output array for predicted positions
+    - nmpc_timestep: Time step for prediction
+    """
+    # Get thread index
+    i = cuda.grid(1)
+    
+    # Use a global constant or pass as parameter if needed
+    HORIZON_LENGTH = 4
+    
+    # Check if thread is within array bounds
+    if i < obstacles.shape[0]:
+        # Extract obstacle data for this thread
+        obstacle = obstacles[i]
         obstacle_position = obstacle[:2]
         obstacle_vel = obstacle[2:]
+        
+        # Compute obstacle trajectory
+        for step in range(HORIZON_LENGTH):
+            # Compute new position based on velocity
+            obstacle_predictions[i, step*2] = obstacle_position[0] + obstacle_vel[0] * nmpc_timestep * (step + 1)
+            obstacle_predictions[i, step*2 + 1] = obstacle_position[1] + obstacle_vel[1] * nmpc_timestep * (step + 1)
 
-        u = np.zeros((HORIZON_LENGTH * 2,))  # Adjust shape as needed
-        for i in range(HORIZON_LENGTH):
-            u[2 * i: 2 * i + 2] = obstacle_vel
-        # u = cuda.to_device(np.vstack([np.eye(2)] * HORIZON_LENGTH) @ obstacle_vel)
-
-        new_state = cuda.device_array((HORIZON_LENGTH, 2))  # Adjust shape as needed
-        update_state_cuda[(HORIZON_LENGTH, 1)](obstacle_position, u, NMPC_TIMESTEP, new_state)
-
-        obstacle_predictions[idx] = new_state
-
-def predict_obstacle_positions(obstacles: np.ndarray) -> np.ndarray:
+def predict_obstacle_positions(obstacles):
+    """
+    Predict obstacle positions using CUDA acceleration
+    
+    Args:
+    - obstacles: Obstacle data array
+    
+    Returns:
+    - Predicted obstacle positions
+    """
+    # Ensure obstacles is a numpy array
     obstacles = np.ascontiguousarray(obstacles)
-    obstacle_predictions = cuda.device_array((HORIZON_LENGTH, obstacles.shape[1], 2))  # Adjust shape as needed
+    # obstacles = np.asarray(obstacles)
+    
+    # Set up CUDA grid
+    threads_per_block = 256
+    blocks_per_grid = math.ceil(obstacles.shape[0] / threads_per_block)
+    
+    # Allocate output array
+    obstacle_predictions = np.zeros((obstacles.shape[0], 8))  # 4 * 2 for horizon length
+    
+    # Allocate CUDA device memory
     d_obstacles = cuda.to_device(obstacles)
-    threads_per_block = 32
-    blocks_per_grid = (obstacles.shape[1] + (threads_per_block - 1)) // threads_per_block
-    predict_obstacle_positions_cuda[blocks_per_grid, threads_per_block](d_obstacles, obstacle_predictions, NMPC_TIMESTEP)
-    return obstacle_predictions.copy_to_host()  # Copy results back to host
+    d_obstacle_predictions = cuda.to_device(obstacle_predictions)
+    
+    # Launch CUDA kernel
+    predict_obstacle_positions_cuda[blocks_per_grid, threads_per_block](
+        d_obstacles, 
+        d_obstacle_predictions, 
+        NMPC_TIMESTEP
+    )
+    
+    # Copy results back to host
+    obstacle_predictions = d_obstacle_predictions.copy_to_host()
+    
+    return obstacle_predictions
+
+def update_state(x0, u, timestep):
+    """
+    Computes the states of the system after applying a sequence of control signals u on
+    initial state x0
+    """
+    N = int(len(u) / 2)
+    lower_triangular_ones_matrix = np.tril(np.ones((N, N)))
+    kron = np.kron(lower_triangular_ones_matrix, np.eye(2))
+
+    new_state = np.vstack([np.eye(2)] * int(N)) @ x0 + kron @ u * timestep
+
+    return new_state
+
