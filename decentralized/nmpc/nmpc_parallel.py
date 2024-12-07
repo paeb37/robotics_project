@@ -10,6 +10,7 @@ import numpy as np
 from scipy.optimize import minimize, Bounds
 import time
 from numba import cuda
+import math
 
 
 SIM_TIME = 8.
@@ -31,6 +32,7 @@ lower_bound = [-(1/np.sqrt(2)) * VMAX] * HORIZON_LENGTH * 2
 
 
 def simulate(filename):
+    print("In here uiefdjkn")
     obstacles = create_obstacles(SIM_TIME, NUMBER_OF_TIMESTEPS)
 
     start = np.array([5, 5])
@@ -82,9 +84,30 @@ def compute_xref(start, goal, number_of_steps, timestep):
 
 
 def total_cost(u, robot_state, obstacle_predictions, xref):
+    """
+    Total cost function incorporating tracking cost and collision cost,
+    updated for CUDA.
+    """
     x_robot = update_state(robot_state, u, NMPC_TIMESTEP)
     c1 = tracking_cost(x_robot, xref)
-    c2 = total_collision_cost(x_robot, obstacle_predictions)
+    
+    # Launch GPU collision cost computation
+    num_obstacles = obstacle_predictions.shape[0]
+    threads_per_block = (16, 16)
+    blocks_per_grid = (
+        math.ceil(HORIZON_LENGTH / threads_per_block[0]),
+        math.ceil(num_obstacles / threads_per_block[1]),
+    )
+    
+    total_cost_array = cuda.to_device(np.zeros(1, dtype=np.float64))  # Device array to store the result
+
+    # Call the CUDA kernel
+    total_collision_cost[blocks_per_grid, threads_per_block](x_robot, obstacle_predictions, total_cost_array)
+
+    # Retrieve the result from the device
+    c2 = total_cost_array.copy_to_host()[0]
+
+    # Combine tracking and collision costs
     total = c1 + c2
     return total
 
@@ -92,70 +115,28 @@ def total_cost(u, robot_state, obstacle_predictions, xref):
 def tracking_cost(x, xref):
     return np.linalg.norm(x-xref)
 
-@cuda.jit
-def total_collision_cost_gpu(robot, obstacles, costs):
-    """
-    CUDA kernel to compute total collision cost.
-    Each thread computes the cost for a specific obstacle and timestep.
-    
-    Parameters:
-        robot: 1D array representing robot trajectory (flattened).
-        obstacles: 2D array with obstacle trajectories (shape: num_obstacles x (2 * HORIZON_LENGTH)).
-        costs: 2D array to store costs (shape: HORIZON_LENGTH x num_obstacles).
-    """
-    i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x  # Timestep index
-    j = cuda.blockIdx.y * cuda.blockDim.y + cuda.threadIdx.y  # Obstacle index
 
-    # Ensure indices are within bounds
-    if i < HORIZON_LENGTH and j < obstacles.shape[0]:
-        # Extract robot and obstacle positions for this timestep
+@cuda.jit
+def total_collision_cost(robot, obstacles, total_cost_array):
+    """
+    Parallelized computation of total collision cost between a robot and obstacles using CUDA.
+    """
+    i, j = cuda.grid(2)  # Get 2D grid indices
+    HORIZON_LENGTH, num_obstacles = robot.shape[0] // 2, obstacles.shape[0]
+
+    if i < HORIZON_LENGTH and j < num_obstacles:
         rob = robot[2 * i: 2 * i + 2]
         obs = obstacles[j, 2 * i: 2 * i + 2]
-        
-        # Compute collision cost
-        d = ((rob[0] - obs[0]) ** 2 + (rob[1] - obs[1]) ** 2) ** 0.5
-        cost = Qc / (1 + cuda.exp(kappa * (d - 2 * ROBOT_RADIUS)))
-        
-        # Store the cost in the output array
-        costs[i, j] = cost
+        cost = collision_cost(rob, obs)
+        cuda.atomic.add(total_cost_array, 0, cost)
 
-def total_collision_cost(robot, obstacles):
-    """
-    Wrapper function for GPU-based collision cost computation.
-    
-    Parameters:
-        robot: 1D array representing robot trajectory.
-        obstacles: 2D array of obstacle trajectories (shape: num_obstacles x (2 * HORIZON_LENGTH)).
-    
-    Returns:
-        Total collision cost (float).
-    """
-    # Allocate memory for costs on the GPU
-    num_obstacles = obstacles.shape[0]
-    costs = cuda.device_array((HORIZON_LENGTH, num_obstacles), dtype=np.float32)
-
-    # Configure CUDA grid and block sizes
-    threads_per_block = (16, 16)
-    blocks_per_grid = (
-        (HORIZON_LENGTH + threads_per_block[0] - 1) // threads_per_block[0],
-        (num_obstacles + threads_per_block[1] - 1) // threads_per_block[1],
-    )
-
-    # Launch the CUDA kernel
-    total_collision_cost_gpu[blocks_per_grid, threads_per_block](robot, obstacles, costs)
-
-    # Copy the results back to the host and compute the total cost
-    costs_host = costs.copy_to_host()
-    return costs_host.sum()
-
-
+@cuda.jit(device=True)
 def collision_cost(x0, x1):
     """
-    Cost of collision between two robot_state
+    Cost of collision between two robot states for CUDA kernel.
     """
-    d = np.linalg.norm(x0 - x1)
-    cost = Qc / (1 + np.exp(kappa * (d - 2*ROBOT_RADIUS)))
-    return cost
+    d = math.sqrt((x0[0] - x1[0]) ** 2 + (x0[1] - x1[1]) ** 2)  # Avoid np.linalg.norm
+    return Qc / (1 + math.exp(kappa * (d - 2 * ROBOT_RADIUS)))
 
 
 def predict_obstacle_positions(obstacles):
