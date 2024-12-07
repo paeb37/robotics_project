@@ -4,101 +4,120 @@ Collision avoidance using Nonlinear Model-Predictive Control
 author: Ashwin Bose (atb033@github.com)
 """
 
-from utils.multi_robot_plot import plot_robot_and_obstacles
+from utils.multi_robot_plot import plot_robots_and_obstacles
 from utils.create_obstacles import create_obstacles
 import numpy as np
 from scipy.optimize import minimize, Bounds
 import time
 
-SIM_TIME = 8.
+SIM_TIME = 8.0
 TIMESTEP = 0.1
-NUMBER_OF_TIMESTEPS = int(SIM_TIME/TIMESTEP)
+NUMBER_OF_TIMESTEPS = int(SIM_TIME / TIMESTEP)
 ROBOT_RADIUS = 0.5
 VMAX = 2
 VMIN = 0.2
 
 # collision cost parameters
-Qc = 5.
-kappa = 4.
+Qc = 5.0
+kappa = 4.0
 
-# nmpc parameters
+# nmpc parameters and constraints
 HORIZON_LENGTH = int(4)
 NMPC_TIMESTEP = 0.3
-upper_bound = [(1/np.sqrt(2)) * VMAX] * HORIZON_LENGTH * 2
-lower_bound = [-(1/np.sqrt(2)) * VMAX] * HORIZON_LENGTH * 2
+upper_bound = [(1 / np.sqrt(2)) * VMAX] * HORIZON_LENGTH * 2
+lower_bound = [-(1 / np.sqrt(2)) * VMAX] * HORIZON_LENGTH * 2
 
 
 def simulate(filename):
     obstacles = create_obstacles(SIM_TIME, NUMBER_OF_TIMESTEPS)
 
-    start = np.array([5, 5])
-    p_desired = np.array([5, 5])
+    # Initialize multiple robots with their start positions and goals
+    start1, goal1 = np.array([5, 5]), np.array([0, 0])
+    start2, goal2 = np.array([0, 0]), np.array([10, 10])
+    start3, goal3 = np.array([10, 0]), np.array([0, 10])
 
-    robot_state = start
-    robot_state_history = np.empty((4, NUMBER_OF_TIMESTEPS))
+    robots = [start1, start2, start3]  # List of robot states
+    goals = [goal1, goal2, goal3]  # List of robot goals
+    num_robots = len(robots)
+
+    # Modified to store history for multiple robots
+    # 4 states: x, y, vx, vy
+    robots_state_history = np.empty((num_robots, 4, NUMBER_OF_TIMESTEPS))
 
     for i in range(NUMBER_OF_TIMESTEPS):
-        # predict the obstacles' position in future
+        # Predict the obstacles' position in future
         obstacle_predictions = predict_obstacle_positions(obstacles[:, i, :])
-        xref = compute_xref(robot_state, p_desired,
-                            HORIZON_LENGTH, NMPC_TIMESTEP)
-        # compute velocity using nmpc
-        vel, velocity_profile = compute_velocity(
-            robot_state, obstacle_predictions, xref)
-        robot_state = update_state(robot_state, vel, TIMESTEP)
-        robot_state_history[:2, i] = robot_state
 
-    plot_robot_and_obstacles(
-        robot_state_history, obstacles, ROBOT_RADIUS, NUMBER_OF_TIMESTEPS, SIM_TIME, filename)
+        # For each robot, compute its own velocity using decentralized NMPC
+        for j, robot in enumerate(robots):
+            xref = compute_xref(robot, goals[j], HORIZON_LENGTH, NMPC_TIMESTEP)
+            vel = compute_velocity(robot, obstacle_predictions, xref, robots)[0]
+            robots[j] = update_state(robot, vel, TIMESTEP)
+            robots_state_history[j, :2, i] = robots[j]
+
+    plot_robots_and_obstacles(
+        robots_state_history,
+        obstacles,
+        ROBOT_RADIUS,
+        NUMBER_OF_TIMESTEPS,
+        SIM_TIME,
+        filename,
+    )
 
 
-def compute_velocity(robot_state, obstacle_predictions, xref):
+def compute_velocity(robot_state, obstacle_predictions, xref, robots):
     """
-    Computes control velocity of the copter
+    Computes control velocity of the robot using decentralized NMPC
     """
-    # u0 = np.array([0] * 2 * HORIZON_LENGTH)
-    u0 = np.random.rand(2*HORIZON_LENGTH)
-    def cost_fn(u): return total_cost(
-        u, robot_state, obstacle_predictions, xref)
+    u0 = np.random.rand(2 * HORIZON_LENGTH)
+
+    def cost_fn(u):
+        return total_cost(u, robot_state, obstacle_predictions, xref, robots)
 
     bounds = Bounds(lower_bound, upper_bound)
 
-    res = minimize(cost_fn, u0, method='SLSQP', bounds=bounds)
+    res = minimize(cost_fn, u0, method="SLSQP", bounds=bounds)
     velocity = res.x[:2]
     return velocity, res.x
 
 
 def compute_xref(start, goal, number_of_steps, timestep):
-    dir_vec = (goal - start)
+    dir_vec = goal - start
     norm = np.linalg.norm(dir_vec)
     if norm < 0.1:
         new_goal = start
     else:
         dir_vec = dir_vec / norm
         new_goal = start + dir_vec * VMAX * timestep * number_of_steps
-    return np.linspace(start, new_goal, number_of_steps).reshape((2*number_of_steps))
+    return np.linspace(start, new_goal, number_of_steps).reshape((2 * number_of_steps))
 
 
-def total_cost(u, robot_state, obstacle_predictions, xref):
+def total_cost(u, robot_state, obstacle_predictions, xref, robots):
     x_robot = update_state(robot_state, u, NMPC_TIMESTEP)
     c1 = tracking_cost(x_robot, xref)
-    c2 = total_collision_cost(x_robot, obstacle_predictions)
+    c2 = total_collision_cost(x_robot, obstacle_predictions, robots)
     total = c1 + c2
     return total
 
 
 def tracking_cost(x, xref):
-    return np.linalg.norm(x-xref)
+    return np.linalg.norm(x - xref)
 
 
-def total_collision_cost(robot, obstacles):
+def total_collision_cost(robot, obstacles, robots):
     total_cost = 0
     for i in range(HORIZON_LENGTH):
         for j in range(len(obstacles)):
             obstacle = obstacles[j]
-            rob = robot[2 * i: 2 * i + 2]
-            obs = obstacle[2 * i: 2 * i + 2]
+            rob = robot[2 * i : 2 * i + 2]
+            obs = obstacle[2 * i : 2 * i + 2]
             total_cost += collision_cost(rob, obs)
+        # Add collision cost with nearby robots
+        # for other_robot in robots:
+        #     if not np.array_equal(
+        #         other_robot, robot[:2]
+        #     ):  # Don't consider self-collision
+        #         total_cost += collision_cost(robot[2 * i : 2 * i + 2], other_robot)
     return total_cost
 
 
@@ -107,7 +126,7 @@ def collision_cost(x0, x1):
     Cost of collision between two robot_state
     """
     d = np.linalg.norm(x0 - x1)
-    cost = Qc / (1 + np.exp(kappa * (d - 2*ROBOT_RADIUS)))
+    cost = Qc / (1 + np.exp(kappa * (d - 2 * ROBOT_RADIUS)))
     return cost
 
 

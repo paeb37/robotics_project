@@ -1,35 +1,50 @@
 import numpy as np
+from numpy.typing import NDArray
 
-def create_obstacles(sim_time, num_timesteps):
-    # Obstacle 1
-    v = -2
-    p0 = np.array([5, 12])
-    obst = create_robot(p0, v, np.pi/2, sim_time,
-                        num_timesteps).reshape(4, num_timesteps, 1)
+
+def create_obstacles(
+    sim_time: float, num_timesteps: int, num_obstacles: int = 4
+) -> NDArray:
+    # Define bounds for random positions and velocities
+    x_bounds = (0, 10)
+    y_bounds = (0, 12)
+    v_bounds = (-2, 2)
+
+    # Create first obstacle to initialize the array
+    p0 = np.array(
+        [
+            np.random.uniform(x_bounds[0], x_bounds[1]),
+            np.random.uniform(y_bounds[0], y_bounds[1]),
+        ]
+    )
+    v = np.random.uniform(v_bounds[0], v_bounds[1])
+    theta = np.random.uniform(-np.pi, np.pi)
+    obst = create_robot(p0, v, theta, sim_time, num_timesteps).reshape(
+        4, num_timesteps, 1
+    )
     obstacles = obst
-    # Obstacle 2
-    v = 2
-    p0 = np.array([0, 5])
-    obst = create_robot(p0, v, 0, sim_time, num_timesteps).reshape(
-        4, num_timesteps, 1)
-    obstacles = np.dstack((obstacles, obst))
-    # Obstacle 3
-    v = 2
-    p0 = np.array([10, 10])
-    obst = create_robot(p0, v, -np.pi * 3 / 4, sim_time, num_timesteps).reshape(4,
-                                                                                num_timesteps, 1)
-    obstacles = np.dstack((obstacles, obst))
-    # Obstacle 4
-    v = 2
-    p0 = np.array([7.5, 2.5])
-    obst = create_robot(p0, v, np.pi * 3 / 4, sim_time, num_timesteps).reshape(4,
-                                                                               num_timesteps, 1)
-    obstacles = np.dstack((obstacles, obst))
+
+    # Create remaining obstacles
+    for _ in range(num_obstacles - 1):
+        p0 = np.array(
+            [
+                np.random.uniform(x_bounds[0], x_bounds[1]),
+                np.random.uniform(y_bounds[0], y_bounds[1]),
+            ]
+        )
+        v = np.random.uniform(v_bounds[0], v_bounds[1])
+        theta = np.random.uniform(-np.pi, np.pi)
+        obst = create_robot(p0, v, theta, sim_time, num_timesteps).reshape(
+            4, num_timesteps, 1
+        )
+        obstacles = np.dstack((obstacles, obst))
 
     return obstacles
 
 
-def create_robot(p0, v, theta, sim_time, num_timesteps):
+def create_robot(
+    p0: NDArray, v: float, theta: float, sim_time: float, num_timesteps: int
+) -> NDArray:
     # Creates obstacles starting at p0 and moving at v in theta direction
     t = np.linspace(0, sim_time, num_timesteps)
     theta = theta * np.ones(np.shape(t))
