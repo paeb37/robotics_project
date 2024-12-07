@@ -12,12 +12,12 @@ import numpy as np
 
 
 def plot_robots_and_obstacles(
-    robots_state_history, obstacles, robot_radius, num_steps, sim_time, filename
+    robots_state_history, obstacles, goals, robot_radius, num_steps, sim_time, filename
 ):
-    num_robots = robots_state_history.shape[0]
+    num_robots = robots_state_history.shape[2]
 
     fig = plt.figure()
-    ax = fig.add_subplot(111, autoscale_on=False, xlim=(0, 20), ylim=(0, 20))
+    ax = fig.add_subplot(111, autoscale_on=False, xlim=(0, 10), ylim=(0, 10))
     ax.set_aspect("equal")
     ax.grid()
 
@@ -26,14 +26,22 @@ def plot_robots_and_obstacles(
 
     # Create patches for all robots
     robot_patches = []
+    # Create patches for all goals and annotate them
+    goal_patches = []
     for i in range(num_robots):
         patch = Circle(
-            (robots_state_history[i, 0, 0], robots_state_history[i, 1, 0]),
+            (robots_state_history[0, 0, i], robots_state_history[1, 0, i]),
             robot_radius,
             facecolor="green",
             edgecolor="black",
         )
         robot_patches.append(patch)
+        goal_patch = Circle(
+            (goals[i][0], goals[i][1]),
+            robot_radius,
+            facecolor="red",
+        )
+        goal_patches.append(goal_patch)
 
     obstacle_list = []
     for obstacle in range(np.shape(obstacles)[2]):
@@ -52,15 +60,15 @@ def plot_robots_and_obstacles(
     def animate(i):
         for robot_idx, patch in enumerate(robot_patches):
             patch.center = (
-                robots_state_history[robot_idx, 0, i],
-                robots_state_history[robot_idx, 1, i],
+                robots_state_history[0, i, robot_idx],
+                robots_state_history[1, i, robot_idx],
             )
         for j in range(len(obstacle_list)):
             obstacle_list[j].center = (obstacles[0, i, j], obstacles[1, i, j])
         for robot_idx, line in enumerate(lines):
             line.set_data(
-                robots_state_history[robot_idx, 0, :i],
-                robots_state_history[robot_idx, 1, :i],
+                robots_state_history[0, :i, robot_idx],
+                robots_state_history[1, :i, robot_idx],
             )
         return robot_patches + lines + obstacle_list
 
@@ -78,12 +86,12 @@ def plot_robots_and_obstacles(
         fig,
         animate,
         np.arange(1, num_steps),
-        interval=100,
+        interval=200,
         blit=True,
         init_func=init,
     )
 
-    ani.save(filename, "ffmpeg", fps=30)
+    ani.save(filename, "ffmpeg", fps=60)
 
 
 def plot_robot(robot, timestep, radius=1, is_obstacle=False):
