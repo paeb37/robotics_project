@@ -18,10 +18,10 @@ VMAX = 2
 VMIN = 0.2
 
 # Adjusted optimization parameters for stronger collision avoidance
-MU = 100        # Increased penalty parameter
-Qc = 100        # Increased collision cost weight
-kappa = 10       # Increased collision cost shape parameter
-SAFETY_MARGIN = 1.2  # Added safety margin multiplier for collision checking
+MU = 200        # Increased penalty parameter
+Qc = 200        # Increased collision cost weight
+kappa = 15       # Increased collision cost shape parameter
+SAFETY_MARGIN = 2.0  # Increased safety margin multiplier for collision checking
 
 
 def simulate(filename):
@@ -55,9 +55,48 @@ def compute_velocity(robot, obstacles, v_desired):
     Returns:
         Optimal velocity vector that avoids collisions
     """
-    # Use previous velocity as initial guess instead of random
-    u0 = robot[2:]  # Use current velocity as starting point
+    # Use current velocity as initial guess
+    u0 = robot[2:]
     
+    def total_cost(u, robot, obstacles, v_desired):
+        # Tracking cost with reduced weight to prioritize collision avoidance
+        tracking_cost = 0.3 * np.linalg.norm(u - v_desired)
+        
+        collision_cost = 0
+        robot_pos = robot[:2]
+        
+        # Look ahead multiple timesteps
+        for t in range(3):  # Check multiple future positions
+            future_time = (t + 1) * TIMESTEP
+            future_robot_pos = robot_pos + u * future_time
+            
+            for obstacle in obstacles:
+                future_obstacle_pos = obstacle[:2] + obstacle[2:] * future_time
+                
+                # Vector from robot to obstacle
+                relative_pos = future_robot_pos - future_obstacle_pos
+                d = np.linalg.norm(relative_pos)
+                
+                # Required safe distance (sum of radii plus safety margin)
+                safe_dist = (2 * ROBOT_RADIUS) * SAFETY_MARGIN
+                
+                # Exponential collision cost
+                collision_cost += Qc / (1 + np.exp(kappa * (d - safe_dist)))
+                
+                # Additional quadratic penalty for close distances
+                if d < safe_dist:
+                    collision_cost += Qc * (safe_dist - d)**2
+                    
+                    # Add directional repulsion
+                    if d > 0.1:  # Avoid division by zero
+                        repulsion = relative_pos / d
+                        collision_cost += Qc * np.dot(u, -repulsion)
+        
+        # Add velocity smoothing cost
+        velocity_smoothing = 0.1 * np.linalg.norm(u - robot[2:])
+        
+        return tracking_cost + collision_cost + velocity_smoothing
+
     def kkt_cost(u):
         """
         KKT-based cost function that includes both the objective and constraint penalties
@@ -75,39 +114,6 @@ def compute_velocity(robot, obstacles, v_desired):
         # MU acts as a penalty parameter that weights the constraint violation
         constraint_violation = np.maximum(0, np.abs(u) - VMAX)
         return cost + MU * np.sum(constraint_violation)
-
-    def total_cost(u, robot, obstacles, v_desired):
-        """
-        Calculate the total cost combining tracking and collision avoidance
-        
-        Args:
-            u: Control input (velocity) [vx, vy]
-            robot: Current robot state
-            obstacles: Array of obstacle states
-            v_desired: Desired velocity vector
-        
-        Returns:
-            Combined cost value
-        """
-        # Reduced weight for tracking cost to prioritize collision avoidance
-        tracking_cost = 0.5 * np.linalg.norm(u - v_desired)
-        
-        collision_cost = 0
-        for obstacle in obstacles:
-            # Predict positions over multiple timesteps for better avoidance
-            future_robot_pos = robot[:2] + u * TIMESTEP
-            future_obstacle_pos = obstacle[:2] + obstacle[2:] * TIMESTEP
-            d = np.linalg.norm(future_robot_pos - future_obstacle_pos)
-            
-            # Enhanced collision cost with safety margin
-            safe_dist = SAFETY_MARGIN * 2 * ROBOT_RADIUS
-            collision_cost += Qc / (1 + np.exp(kappa * (d - safe_dist)))
-            
-            # Add extra penalty for very close distances
-            if d < safe_dist:
-                collision_cost += Qc * (safe_dist - d)**2
-        
-        return tracking_cost + collision_cost
 
     # Define bounds for velocity optimization
     # Both vx and vy must be within [-VMAX, VMAX]
