@@ -2,6 +2,40 @@ import velocity_obstacle.velocity_obstacle as velocity_obstacle
 import kkt.kkt_solver as kkt_solver
 import nmpc.nmpc as nmpc
 import argparse
+import time
+import numpy as np
+
+def run_with_timing(simulate_func, filename):
+    start_time = time.time()
+    computation_times = []
+    
+    def timing_wrapper(*args, **kwargs):
+        iter_start = time.time()
+        result = simulate_func(*args, **kwargs)
+        computation_times.append(time.time() - iter_start)
+        return result
+        
+    timing_wrapper.computation_times = computation_times
+    
+    timing_wrapper(filename)
+    total_time = time.time() - start_time
+    
+    # Calculate statistics
+    comp_times = np.array(computation_times)
+    stats = {
+        'total_time': total_time,
+        'avg_iteration_time': np.mean(comp_times),
+        'std_iteration_time': np.std(comp_times),
+        'max_iteration_time': np.max(comp_times),
+        'min_iteration_time': np.min(comp_times)
+    }
+    
+    print(f"\nPerformance Statistics for {simulate_func.__module__}:")
+    print(f"Total Runtime: {stats['total_time']:.4f} seconds")
+    print(f"Average Iteration Time: {stats['avg_iteration_time']*1000:.2f} ms")
+    print(f"Std Dev Iteration Time: {stats['std_iteration_time']*1000:.2f} ms")
+    print(f"Max Iteration Time: {stats['max_iteration_time']*1000:.2f} ms")
+    print(f"Min Iteration Time: {stats['min_iteration_time']*1000:.2f} ms")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -11,11 +45,11 @@ if __name__ == "__main__":
         "-f", "--filename", help="filename, in case you want to save the animation")
 
     args = parser.parse_args()
-    if args.mode == "velocity_obstacle": # existing method
-        velocity_obstacle.simulate(args.filename)
-    elif args.mode == "nmpc":  # existing method
-        nmpc.simulate(args.filename)
-    elif args.mode == "kkt": # our method
-        kkt_solver.simulate(args.filename)
+    if args.mode == "velocity_obstacle":
+        run_with_timing(velocity_obstacle.simulate, args.filename)
+    elif args.mode == "nmpc":
+        run_with_timing(nmpc.simulate, args.filename)
+    elif args.mode == "kkt":
+        run_with_timing(kkt_solver.simulate, args.filename)
     else:
         print("Please enter mode the desired mode: velocity_obstacle or nmpc")

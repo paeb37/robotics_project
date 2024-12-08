@@ -43,15 +43,16 @@ def simulate(filename):
     robot_state_history = np.empty((4, NUMBER_OF_TIMESTEPS))
 
     for i in range(NUMBER_OF_TIMESTEPS):
-        # predict the obstacles' position in future
+        iter_start = time.time()
         obstacle_predictions = predict_obstacle_positions(obstacles[:, i, :])
         xref = compute_xref(robot_state, p_desired,
                             HORIZON_LENGTH, NMPC_TIMESTEP)
-        # compute velocity using nmpc
         vel, velocity_profile = compute_velocity(
             robot_state, obstacle_predictions, xref)
         robot_state = update_state(robot_state, vel, TIMESTEP)
         robot_state_history[:2, i] = robot_state
+        if hasattr(simulate, 'computation_times'):
+            simulate.computation_times.append(time.time() - iter_start)
 
     plot_robot_and_obstacles(
         robot_state_history, obstacles, ROBOT_RADIUS, NUMBER_OF_TIMESTEPS, SIM_TIME, filename)
