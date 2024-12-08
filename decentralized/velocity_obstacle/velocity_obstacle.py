@@ -8,7 +8,6 @@ from utils.multi_robot_plot import plot_robot_and_obstacles
 from utils.create_obstacles import create_obstacles
 from utils.control import compute_desired_velocity
 import numpy as np
-import time
 
 SIM_TIME = 5.
 TIMESTEP = 0.1
@@ -27,14 +26,11 @@ def simulate(filename):
     robot_state = start
     robot_state_history = np.empty((4, NUMBER_OF_TIMESTEPS))
     for i in range(NUMBER_OF_TIMESTEPS):
-        iter_start = time.time()
         v_desired = compute_desired_velocity(robot_state, goal, ROBOT_RADIUS, VMAX)
         control_vel = compute_velocity(
             robot_state, obstacles[:, i, :], v_desired)
         robot_state = update_state(robot_state, control_vel)
         robot_state_history[:4, i] = robot_state
-        if hasattr(simulate, 'computation_times'):
-            simulate.computation_times.append(time.time() - iter_start)
 
     plot_robot_and_obstacles(
         robot_state_history, obstacles, ROBOT_RADIUS, NUMBER_OF_TIMESTEPS, SIM_TIME, filename)
