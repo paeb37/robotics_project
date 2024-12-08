@@ -1,7 +1,7 @@
 """
 Collision avoidance using Velocity-obstacle method
 
-author: Ashwin Bose (atb033@github.com)
+author: Brandon (paeb37) + Joe (xnicolll)
 """
 
 from utils.multi_robot_plot import plot_robot_and_obstacles
