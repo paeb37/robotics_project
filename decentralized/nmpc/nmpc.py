@@ -27,11 +27,6 @@ NMPC_TIMESTEP = 0.3
 upper_bound = [(1/np.sqrt(2)) * VMAX] * HORIZON_LENGTH * 2
 lower_bound = [-(1/np.sqrt(2)) * VMAX] * HORIZON_LENGTH * 2
 
-# new parameters for lagrangian
-LAMBDA_MAX = 10.0 # max value for lagrange multiplier
-MU = 0.5 # adjusts the impact of the constraint
-# when MU is large, then constraint matters more and algorithm stays away from constraints
-# can try different values of MU
 
 def simulate(filename):
     obstacles = create_obstacles(SIM_TIME, NUMBER_OF_TIMESTEPS)
@@ -43,36 +38,26 @@ def simulate(filename):
     robot_state_history = np.empty((4, NUMBER_OF_TIMESTEPS))
 
     for i in range(NUMBER_OF_TIMESTEPS):
-        iter_start = time.time()
+        # predict the obstacles' position in future
         obstacle_predictions = predict_obstacle_positions(obstacles[:, i, :])
         xref = compute_xref(robot_state, p_desired,
                             HORIZON_LENGTH, NMPC_TIMESTEP)
+        # compute velocity using nmpc
         vel, velocity_profile = compute_velocity(
             robot_state, obstacle_predictions, xref)
         robot_state = update_state(robot_state, vel, TIMESTEP)
         robot_state_history[:2, i] = robot_state
-        if hasattr(simulate, 'computation_times'):
-            simulate.computation_times.append(time.time() - iter_start)
 
     plot_robot_and_obstacles(
         robot_state_history, obstacles, ROBOT_RADIUS, NUMBER_OF_TIMESTEPS, SIM_TIME, filename)
 
-"""
-Where the optimization problem is set up and solved
-"""
+
 def compute_velocity(robot_state, obstacle_predictions, xref):
+    """
+    Computes control velocity of the copter
+    """
     # u0 = np.array([0] * 2 * HORIZON_LENGTH)
-    u0 = np.random.rand(2*HORIZON_LENGTH) # u0 represents the control input, initial
-    
-    # cost function h
-    def kkt_cost(u):
-        # Base cost plus barrier term for inequality constraints
-        cost = total_cost(u, robot_state, obstacle_predictions, xref)
-        constraint_violation = np.maximum(0, np.abs(u) - upper_bound)
-        return cost + MU * np.sum(constraint_violation)
-    
-    
-    
+    u0 = np.random.rand(2*HORIZON_LENGTH)
     def cost_fn(u): return total_cost(
         u, robot_state, obstacle_predictions, xref)
 
@@ -82,9 +67,7 @@ def compute_velocity(robot_state, obstacle_predictions, xref):
     velocity = res.x[:2]
     return velocity, res.x
 
-"""
-Generate reference trajectories
-"""
+
 def compute_xref(start, goal, number_of_steps, timestep):
     dir_vec = (goal - start)
     norm = np.linalg.norm(dir_vec)
@@ -95,9 +78,7 @@ def compute_xref(start, goal, number_of_steps, timestep):
         new_goal = start + dir_vec * VMAX * timestep * number_of_steps
     return np.linspace(start, new_goal, number_of_steps).reshape((2*number_of_steps))
 
-"""
-Total cost
-"""
+
 def total_cost(u, robot_state, obstacle_predictions, xref):
     x_robot = update_state(robot_state, u, NMPC_TIMESTEP)
     c1 = tracking_cost(x_robot, xref)
@@ -105,15 +86,11 @@ def total_cost(u, robot_state, obstacle_predictions, xref):
     total = c1 + c2
     return total
 
-"""
-Part of the cost
-"""
+
 def tracking_cost(x, xref):
     return np.linalg.norm(x-xref)
 
-"""
-Part of the cost
-"""
+
 def total_collision_cost(robot, obstacles):
     total_cost = 0
     for i in range(HORIZON_LENGTH):
@@ -124,9 +101,7 @@ def total_collision_cost(robot, obstacles):
             total_cost += collision_cost(rob, obs)
     return total_cost
 
-"""
-Part of the cost
-"""
+
 def collision_cost(x0, x1):
     """
     Cost of collision between two robot_state
@@ -135,9 +110,7 @@ def collision_cost(x0, x1):
     cost = Qc / (1 + np.exp(kappa * (d - 2*ROBOT_RADIUS)))
     return cost
 
-"""
-Predicts future states of the obstacles
-"""
+
 def predict_obstacle_positions(obstacles):
     obstacle_predictions = []
     for i in range(np.shape(obstacles)[1]):
