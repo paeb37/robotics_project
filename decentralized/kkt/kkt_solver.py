@@ -17,11 +17,11 @@ ROBOT_RADIUS = 0.5
 VMAX = 2
 VMIN = 0.2
 
-# Adjusted optimization parameters for stronger collision avoidance
-MU = 200        # Increased penalty parameter
-Qc = 200        # Increased collision cost weight
-kappa = 15       # Increased collision cost shape parameter
-SAFETY_MARGIN = 2.0  # Increased safety margin multiplier for collision checking
+# Since initial kkt changes, increased optimization parameters for stronger collision avoidance
+MU = 200 # Penalty parameter
+Qc = 200 # Collision cost weight
+kappa = 15 # Collision cost shape parameter
+SAFETY_MARGIN = 2.0 # Safety margin multiplier for collision checking
 
 
 def simulate(filename):
@@ -55,7 +55,6 @@ def compute_velocity(robot, obstacles, v_desired):
     Returns:
         Optimal velocity vector that avoids collisions
     """
-    # Use current velocity as initial guess
     u0 = robot[2:]
     
     def total_cost(u, robot, obstacles, v_desired):

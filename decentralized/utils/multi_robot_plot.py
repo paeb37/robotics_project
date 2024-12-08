@@ -45,40 +45,35 @@ def plot_robot_and_obstacles(robot, obstacles, robot_radius, num_steps, sim_time
         animate(i)
         plt.pause(step)
 
-    # Save animation
     if not filename:
         return
     
-    # Reduced fps for slower playback
     FPS = 10  # Changed from 30 to 10
     
     ani = animation.FuncAnimation(
         fig, animate, np.arange(1, num_steps), 
-        interval=1000/FPS,  # interval in milliseconds (1000ms/fps)
+        interval=1000/FPS,  # interval in milliseconds
         blit=True, 
         init_func=init)
 
-    # Get file extension
     file_extension = filename.split('.')[-1].lower()
     
     if file_extension == 'mp4':
-        # Save as MP4
         writer = animation.FFMpegWriter(
-            fps=FPS,  # Reduced fps
+            fps=FPS,
             metadata=dict(artist='Me'),
             bitrate=1800
         )
         ani.save(filename, writer=writer)
     
     elif file_extension == 'gif':
-        # Save as GIF
-        ani.save(filename, writer='pillow', fps=FPS)  # Reduced fps
+        ani.save(filename, writer='pillow', fps=FPS)
     
     else:
         print(f"Unsupported file format: {file_extension}")
         print("Please use .mp4 or .gif extension")
     
-    plt.close()  # Close the figure to free memory
+    plt.close()
 
 
 def plot_robot(robot, timestep, radius=1, is_obstacle=False):

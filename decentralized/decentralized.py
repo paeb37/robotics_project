@@ -20,7 +20,6 @@ def run_with_timing(simulate_func, filename):
     timing_wrapper(filename)
     total_time = time.time() - start_time
     
-    # Calculate only total and average iteration time
     comp_times = np.array(computation_times)
     print(f"\nTiming for {simulate_func.__module__}:")
     print(f"Total Runtime: {total_time:.4f} seconds")
