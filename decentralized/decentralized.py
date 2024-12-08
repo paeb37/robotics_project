@@ -20,22 +20,11 @@ def run_with_timing(simulate_func, filename):
     timing_wrapper(filename)
     total_time = time.time() - start_time
     
-    # Calculate statistics
+    # Calculate only total and average iteration time
     comp_times = np.array(computation_times)
-    stats = {
-        'total_time': total_time,
-        'avg_iteration_time': np.mean(comp_times),
-        'std_iteration_time': np.std(comp_times),
-        'max_iteration_time': np.max(comp_times),
-        'min_iteration_time': np.min(comp_times)
-    }
-    
-    print(f"\nPerformance Statistics for {simulate_func.__module__}:")
-    print(f"Total Runtime: {stats['total_time']:.4f} seconds")
-    print(f"Average Iteration Time: {stats['avg_iteration_time']*1000:.2f} ms")
-    print(f"Std Dev Iteration Time: {stats['std_iteration_time']*1000:.2f} ms")
-    print(f"Max Iteration Time: {stats['max_iteration_time']*1000:.2f} ms")
-    print(f"Min Iteration Time: {stats['min_iteration_time']*1000:.2f} ms")
+    print(f"\nTiming for {simulate_func.__module__}:")
+    print(f"Total Runtime: {total_time:.4f} seconds")
+    print(f"Average Iteration Time: {np.mean(comp_times)*1000:.2f} ms")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
