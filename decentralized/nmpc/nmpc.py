@@ -28,8 +28,8 @@ upper_bound = [(1/np.sqrt(2)) * VMAX] * HORIZON_LENGTH * 2
 lower_bound = [-(1/np.sqrt(2)) * VMAX] * HORIZON_LENGTH * 2
 
 # new parameters for lagrangian
-# LAMBDA_MAX = 10.0 # max value for lagrange multiplier
-# MU = 0.1 # adjusts the impact of the constraint
+LAMBDA_MAX = 10.0 # max value for lagrange multiplier
+MU = 0.5 # adjusts the impact of the constraint
 # when MU is large, then constraint matters more and algorithm stays away from constraints
 # can try different values of MU
 
