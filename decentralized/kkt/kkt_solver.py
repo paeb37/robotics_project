@@ -45,89 +45,87 @@ def simulate(filename):
 
 def compute_velocity(robot, obstacles, v_desired):
     """
-    Compute optimal velocity using KKT-based optimization
+    Get the optimal velocity using KKT optimization
     
     Args:
-        robot: Current robot state [x, y, vx, vy]
-        obstacles: Array of obstacle states
-        v_desired: Desired velocity vector [vx, vy]
+        robot: Current robot state (positions, velocities)
+        obstacles: Just an array of obstacle states
+        v_desired: Desired velocity
     
     Returns:
-        Optimal velocity vector that avoids collisions
+        Optimal velocity vector (that avoids collisions)
     """
     u0 = robot[2:]
     
     def total_cost(u, robot, obstacles, v_desired):
-        # Tracking cost with reduced weight to prioritize collision avoidance
+        # This is the tracking cost with reduced weight 
+        # It prioritizes collision avoidance
         tracking_cost = 0.3 * np.linalg.norm(u - v_desired)
         
         collision_cost = 0
         robot_pos = robot[:2]
         
-        # Look ahead multiple timesteps
-        for t in range(3):  # Check multiple future positions
+        # Look ahead a few timesteps
+        for t in range(3):
             future_time = (t + 1) * TIMESTEP
             future_robot_pos = robot_pos + u * future_time
             
             for obstacle in obstacles:
                 future_obstacle_pos = obstacle[:2] + obstacle[2:] * future_time
                 
-                # Vector from robot to obstacle
+                # Robot to obstacle vector
                 relative_pos = future_robot_pos - future_obstacle_pos
                 d = np.linalg.norm(relative_pos)
                 
-                # Required safe distance (sum of radii plus safety margin)
+                # Required safe distance (this is a main change we made)
                 safe_dist = (2 * ROBOT_RADIUS) * SAFETY_MARGIN
                 
-                # Exponential collision cost
                 collision_cost += Qc / (1 + np.exp(kappa * (d - safe_dist)))
                 
-                # Additional quadratic penalty for close distances
+                # Another quadratic penalty we added (for the edge case of close distances)
                 if d < safe_dist:
                     collision_cost += Qc * (safe_dist - d)**2
                     
-                    # Add directional repulsion
-                    if d > 0.1:  # Avoid division by zero
+                    if d > 0.1:
                         repulsion = relative_pos / d
                         collision_cost += Qc * np.dot(u, -repulsion)
         
-        # Add velocity smoothing cost
+        # This is an extra velocity cost for smoothing
         velocity_smoothing = 0.1 * np.linalg.norm(u - robot[2:])
         
         return tracking_cost + collision_cost + velocity_smoothing
 
     def kkt_cost(u):
         """
-        KKT-based cost function that includes both the objective and constraint penalties
+        KKT-based cost function
+        This includes both the objective and constraint penalties
         
         Args:
-            u: Control input (velocity) [vx, vy]
+            u: Control input - this is the velocity
         
         Returns:
-            Total cost including constraint penalties
+            Total cost (including constraint penalties)
         """
         # Calculate base cost (tracking + collision avoidance)
         cost = total_cost(u, robot, obstacles, v_desired)
         
-        # Add barrier term for inequality constraints (velocity bounds)
-        # MU acts as a penalty parameter that weights the constraint violation
+        # This is a new barrier term for inequality constraints (the velocity bounds)
+        # MU = penalty parameter, weights the constraint violation
         constraint_violation = np.maximum(0, np.abs(u) - VMAX)
         return cost + MU * np.sum(constraint_violation)
 
-    # Define bounds for velocity optimization
-    # Both vx and vy must be within [-VMAX, VMAX]
+    # Bounds for velocity optimization
     bounds = Bounds([-VMAX, -VMAX], [VMAX, VMAX])
 
-    # Solve the optimization problem using SLSQP (Sequential Least SQuares Programming)
-    # This method handles nonlinear constraints and is suitable for KKT optimization
+    # SLSQP (Sequential Least SQuares Programming) - uses KKT under the hood
     res = minimize(
-        kkt_cost,           # Objective function to minimize
-        u0,                 # Initial guess
-        method='SLSQP',     # Optimization method
-        bounds=bounds       # Velocity bounds
+        kkt_cost,           
+        u0,                 
+        method='SLSQP',     
+        bounds=bounds
     )
 
-    # Return the optimal velocity vector
+    # the optimal velocity vector
     return res.x
 
 
