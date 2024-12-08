@@ -36,23 +36,18 @@ NUM_STATES = 2
 def simulate(filename):
     num_obstacles = random.randint(1, 7)
     obstacles = create_obstacles(SIM_TIME, NUMBER_OF_TIMESTEPS, num_obstacles)
-
-    # Initialize multiple robots
-    num_robots = 3
-    robots = []  # robot states
-    goals = []  # robot goals
-
+    num_robots = random.randint(1, 4)
+    robots = []
+    goals = []
     for _ in range(num_robots):
         start = np.array([np.random.uniform(0, 10), np.random.uniform(0, 10)])
         goal = np.array([np.random.uniform(0, 10), np.random.uniform(0, 10)])
         robots.append(start)
         goals.append(goal)
-
     robots_state_history = np.empty((NUM_STATES, NUMBER_OF_TIMESTEPS, num_robots))
 
     for i in range(NUMBER_OF_TIMESTEPS):
         obstacle_predictions = predict_obstacle_positions(obstacles[:, i, :])
-
         for j, robot in enumerate(robots):
             xref = compute_xref(robot, goals[j], HORIZON_LENGTH, NMPC_TIMESTEP)
             vel = compute_velocity(robot, obstacle_predictions, xref, robots, j)[0]
@@ -157,16 +152,39 @@ def robot_collision_cost(robot1, robot2, r_th, r_min):
         return Qc / (1 + np.exp(kappa * (d - r_th)))
 
 
+@cuda.jit
+def predict_obstacle_kernel(d_obstacles, d_obstacle_predictions):
+    i = cuda.grid(1)
+    if i < d_obstacles.shape[1]:
+        obstacle_x = d_obstacles[0, i]
+        obstacle_y = d_obstacles[1, i]
+        vel_x = d_obstacles[2, i]
+        vel_y = d_obstacles[3, i]
+
+        for j in range(HORIZON_LENGTH):
+            obstacle_x += vel_x * NMPC_TIMESTEP
+            obstacle_y += vel_y * NMPC_TIMESTEP
+            d_obstacle_predictions[i, j, 0] = obstacle_x
+            d_obstacle_predictions[i, j, 1] = obstacle_y
+
+
 def predict_obstacle_positions(obstacles):
-    obstacle_predictions = []
-    for i in range(np.shape(obstacles)[1]):
-        obstacle = obstacles[:, i]
-        obstacle_position = obstacle[:2]
-        obstacle_vel = obstacle[2:]
-        u = np.vstack([np.eye(2)] * HORIZON_LENGTH) @ obstacle_vel
-        obstacle_prediction = update_state(obstacle_position, u, NMPC_TIMESTEP)
-        obstacle_predictions.append(obstacle_prediction)
-    return obstacle_predictions
+    obstacles = np.ascontiguousarray(obstacles, dtype=np.float32)
+
+    threads_per_block = 256
+    blocks_per_grid = (obstacles.shape[1] + threads_per_block - 1) // threads_per_block
+
+    d_obstacle_predictions = cuda.device_array(
+        (obstacles.shape[1], HORIZON_LENGTH, 2), dtype=np.float32
+    )
+
+    d_obstacles = cuda.to_device(obstacles)
+
+    predict_obstacle_kernel[blocks_per_grid, threads_per_block](
+        d_obstacles, d_obstacle_predictions
+    )
+
+    return d_obstacle_predictions.copy_to_host()
 
 
 def update_state(x0, u, timestep):
