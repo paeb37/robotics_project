@@ -372,26 +372,45 @@ def plot_timing_results():
     plt.grid(True)
     plt.savefig("obstacle_collision_timing.png")
 
-    # Plot speedups for both operations (using CPU as baseline)
-    # Speedup = CPU time / GPU total time
-    pred_speedup = (
-        avg_predict_cpu / avg_predict_gpu_total if avg_predict_gpu_total > 0 else 1.0
-    )
-    collision_speedup = (
-        avg_collision_cpu / avg_collision_gpu_total
-        if avg_collision_gpu_total > 0
-        else 1.0
-    )
+    # Calculate times for plotting
+    pred_kernel_time = avg_predict_gpu_kernel
+    pred_total_time = avg_predict_gpu_total
+    collision_kernel_time = avg_collision_gpu_kernel
+    collision_total_time = avg_collision_gpu_total
 
+    # Bar positions and heights
+    categories = ["Obstacle Prediction", "Obstacle Collision"]
+    kernel_times = [pred_kernel_time, collision_kernel_time]
+    additional_times = [
+        pred_total_time - pred_kernel_time,
+        collision_total_time - collision_kernel_time,
+    ]
+
+    # Plot
     plt.figure(figsize=(8, 6))
-    plt.bar(
-        ["Obstacle Prediction", "Obstacle Collision"],
-        [pred_speedup, collision_speedup],
-        color=["#2ca02c", "#2ca02c"],
-    )
-    plt.title("GPU Speedup Over CPU (Total GPU Time)")
-    plt.ylabel("Speedup (CPU/GPU)")
-    plt.grid(True)
-    plt.savefig("gpu_speedup.png")
+    bar_width = 0.5
+    bar_positions = range(len(categories))
 
+    # Plot kernel times (blue bars)
+    plt.bar(bar_positions, kernel_times, bar_width, label="Kernel Time", color="blue")
+
+    # Plot additional times (orange bars) on top of kernel times
+    plt.bar(
+        bar_positions,
+        additional_times,
+        bar_width,
+        bottom=kernel_times,
+        label="Additional Time",
+        color="orange",
+    )
+
+    # Add labels and title
+    plt.xticks(bar_positions, categories)
+    plt.ylabel("Time (seconds)")
+    plt.title("GPU Time Breakdown for Obstacle Prediction and Collision")
+    plt.legend()
+    plt.grid(True, axis="y")
+
+    # Save and show the plot
+    plt.savefig("gpu_time_breakdown.png")
     plt.show()
