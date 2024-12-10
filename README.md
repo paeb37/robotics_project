@@ -13,33 +13,16 @@ Key features:
 - Custom KKT solver for trajectory optimization
 - Parallel implementation using CUDA
 
-## Installation
-
-1. Clone the repository:
-
-   ```
-   git clone https://github.com/your-username/multi-agent-trajopt.git
-   cd multi-agent-trajopt
-   ```
-
-2. Install the required dependencies:
-
-   ```
-   pip install -r requirements.txt
-   ```
-
-3. Ensure you are using a CUDA-compatible GPU and have the necessary drivers installed.
-
 ## Usage
 
-To run the multi-agent trajectory optimization:
+1. Clone the repository and switch to the branch we are working on:
 
-```
-cd decentralized
-!python decentralized.py -m nmpc -f test.gif
-```
+   ```
+   git clone https://github.com/paeb37/robotics_project.git
+   git checkout taimur/integrate-decentralized-parallel-cost
+   ```
 
-This will run the decentralized NMPC algorithm and save the output visualization as `test.gif`.
+2. Run the notebook `decentralized/RoboticsTest.ipynb` on a machine that has a CUDA-compatible GPU (e.g. Google Colab using a T4) to run the simulation. This will run the decentralized NMPC algorithm and save the output visualization as `test.gif`.
 
 ## Team
 
