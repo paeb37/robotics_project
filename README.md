@@ -1,5 +1,11 @@
 # Multi-Agent path planning in Python
 
+Commands to run the KKT code:
+
+cd ./decentralized
+python3 decentralized.py -f velocity_obstacle/new_kkt.avi -m new_kkt
+python3 decentralized.py -f kkt/new_kkt.mp4 -m kkt
+
 ## Introduction
 
 This repository consists of the implementation of some multi-agent path-planning algorithms in Python. The following algorithms are currently implemented:
