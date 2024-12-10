@@ -126,7 +126,6 @@ def total_cost(u, robot_state, obstacle_predictions, xref, robots, robot_index):
     start_gpu_total = time.perf_counter()
     c2_obstacles_gpu = gpu_obstacle_collision_cost(x_robot, obstacle_predictions)
     end_gpu_total = time.perf_counter()
-    timings["obstacle_collision_gpu_total"].append(end_gpu_total - start_gpu_total)
 
     # Just timing the kernel itself separately (already done inside gpu_obstacle_collision_cost)
     # We will rely on measured times in gpu_obstacle_collision_cost function.
@@ -313,6 +312,7 @@ def gpu_obstacle_collision_cost(x_robot, obstacle_predictions):
     end_total = time.perf_counter()
 
     timings["obstacle_collision_gpu_kernel"].append(end_kernel - start_kernel)
+    timings["obstacle_collision_gpu_total"].append(end_total - start_total)
     # total time already recorded in total_cost function (outer level)
     return c2[0]
 
