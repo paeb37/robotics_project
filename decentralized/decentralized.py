@@ -17,13 +17,14 @@ if __name__ == "__main__":
     if args.mode == "velocity_obstacle":
         velocity_obstacle.simulate(args.filename)
     elif args.mode == "nmpc":
-        # nmpc.simulate(args.filename)
+        # Normal simulation call
+        nmpc.simulate(args.filename)
 
-        # After running multiple simulations:
-        for i in range(10):
-            nmpc.simulate(f"simulation_{i}.gif")
-        nmpc.plot_timing_results()
-        #
+        # For benchmarking the NMPC implementation, we can simulate the NMPC algorithm multiple times
+        # for i in range(10):
+        #     nmpc.simulate(f"simulation_{i}.gif")
+        # nmpc.plot_timing_results()
+
         # The above plotting function will produce and save 3 plots:
         # 1. obstacle_prediction_timing.png
         # 2. obstacle_collision_timing.png

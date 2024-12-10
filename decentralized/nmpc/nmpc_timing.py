@@ -1,11 +1,5 @@
 """
-Integrated multi-robot NMPC with GPU-accelerated obstacle collision cost for obstacles.
-Robot-robot collisions remain on CPU, while robot-obstacle collisions are computed in parallel on the GPU.
-
-Modifications:
-- Added timing instrumentation for GPU and CPU computations.
-- Added CPU reference implementations for GPU kernels for comparison.
-- Collect and plot timings at the end.
+This version of the script was used to generate benchmarking results on the GPU speedup for obstacle prediction and collision avoidance in the NMPC-based decentralized control system. The script uses the `numba.cuda` library to offload computations to the GPU and compare the performance with the CPU-based implementation.
 """
 
 import random
