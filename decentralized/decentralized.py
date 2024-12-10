@@ -17,6 +17,18 @@ if __name__ == "__main__":
     if args.mode == "velocity_obstacle":
         velocity_obstacle.simulate(args.filename)
     elif args.mode == "nmpc":
-        nmpc.simulate(args.filename)
+        # nmpc.simulate(args.filename)
+
+        # After running multiple simulations:
+        for i in range(10):
+            nmpc.simulate(f"simulation_{i}.png")
+        nmpc.plot_timing_results()
+        #
+        # The above plotting function will produce and save 3 plots:
+        # 1. obstacle_prediction_timing.png
+        # 2. obstacle_collision_timing.png
+        # 3. gpu_speedup.png
+        #
+        # These can be used in the results section of a paper.
     else:
         print("Please enter mode the desired mode: velocity_obstacle or nmpc")

@@ -401,17 +401,3 @@ def plot_timing_results():
     plt.savefig("gpu_speedup.png")
 
     plt.show()
-
-
-# Example usage:
-# After running multiple simulations:
-# for i in range(10):
-#     simulate(f"simulation_{i}.png")
-# plot_timing_results()
-#
-# The above plotting function will produce and save 3 plots:
-# 1. obstacle_prediction_timing.png
-# 2. obstacle_collision_timing.png
-# 3. gpu_speedup.png
-#
-# These can be used in the results section of a paper.
