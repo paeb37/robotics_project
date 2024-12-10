@@ -65,8 +65,15 @@ def simulate(filename):
     for i in range(NUMBER_OF_TIMESTEPS):
         # GPU-based predictions
         obstacle_predictions_gpu = predict_obstacle_positions(obstacles[:, i, :])
+        obstacle_predictions_gpu = obstacle_predictions_gpu.reshape(
+            (obstacle_predictions_gpu.shape[0], 2 * HORIZON_LENGTH)
+        )
+
         # CPU-based predictions for comparison
         obstacle_predictions_cpu = predict_obstacle_positions_cpu(obstacles[:, i, :])
+        obstacle_predictions_cpu = obstacle_predictions_cpu.reshape(
+            (obstacle_predictions_cpu.shape[0], 2 * HORIZON_LENGTH)
+        )
 
         for j, robot in enumerate(robots):
             xref = compute_xref(robot, goals[j], HORIZON_LENGTH, NMPC_TIMESTEP)
