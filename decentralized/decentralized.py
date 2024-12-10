@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
         # After running multiple simulations:
         for i in range(10):
-            nmpc.simulate(f"simulation_{i}.png")
+            nmpc.simulate(f"simulation_{i}.gif")
         nmpc.plot_timing_results()
         #
         # The above plotting function will produce and save 3 plots:
