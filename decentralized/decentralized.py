@@ -1,5 +1,5 @@
 import velocity_obstacle.velocity_obstacle as velocity_obstacle
-import nmpc.nmpc_timing as nmpc
+import nmpc.nmpc as nmpc
 import argparse
 
 if __name__ == "__main__":
@@ -21,9 +21,9 @@ if __name__ == "__main__":
         # nmpc.simulate(args.filename)
 
         # For benchmarking the NMPC implementation, we can simulate the NMPC algorithm multiple times
-        for i in range(1):
-            nmpc.simulate(f"simulation_{i}.gif")
-        nmpc.plot_timing_results()
+
+        nmpc.simulate(args.filename)
+        # nmpc.plot_timing_results()
 
         # The above plotting function will produce and save 3 plots:
         # 1. obstacle_prediction_timing.png
