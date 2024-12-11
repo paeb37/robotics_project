@@ -22,42 +22,40 @@ python3 decentralized.py -f kkt/new_kkt.mp4 -m kkt
 
 #### Results
 
-|            Test (With Optimization)            |
-|:--------------------------------------:|
-| ![Success](./decentralized/kkt/new_kkt.gif) | 
+|          Test (With Optimization)           |
+| :-----------------------------------------: |
+| ![Success](./decentralized/kkt/new_kkt.gif) |
 
 ## Parallelized Decentralized Code
 
 #### Execution
+
 ```bash
 python3 ./robotics_project/decentralized/decentralized.py -m nmpc -f output_animation_file_name.gif
 ```
 
 ### Parallelized Total Cost Computation
+
 #### Results
 
-|            4 Obstacles            |            100 Obstacles            |
-|:--------------------------------------:|:--------------------------------------:|
-| ![Success](./decentralized/nmpc/4-obstacles.gif) | ![Success](./decentralized/nmpc/100-obstacles.gif)|
+|                   4 Obstacles                    |                   100 Obstacles                    |
+| :----------------------------------------------: | :------------------------------------------------: |
+| ![Success](./decentralized/nmpc/4-obstacles.gif) | ![Success](./decentralized/nmpc/100-obstacles.gif) |
 
 ### Parallelized Obstacle Prediction
-#### Results
-|            Test (With Parallel Obstacle Prediction)            |
-|:--------------------------------------:|
-| ![Success](./decentralized/nmpc/parallel-prediction.gif) | 
 
+#### Results
+
+|         Test (With Parallel Obstacle Prediction)         |
+| :------------------------------------------------------: |
+| ![Success](./decentralized/nmpc/parallel-prediction.gif) |
 
 #### Execution
 
-Run the following to test the new code:
-
-```bash
-git checkout taimur/integrate-decentralized-parallel-
-cost cd ./decentralized
-```
+To run multi-agent NMPC with the parallelized algorithms, run the notebook `decentralized/MultiAgentNMPCParallel.ipynb` in a GPU environment (e.g. Google Colab).
 
 #### Results
 
-|            Test 1 (Success)            |            Test 2 (Failure)            |
-|:--------------------------------------:|:--------------------------------------:|
-| ![Success](./centralized/sipp/results/success.gif) | ![Failure](./centralized/sipp/results/failure.gif)|
+|      Multi-Agent Decentralized NMPC w/ Parallelization       |
+| :----------------------------------------------------------: |
+| ![Success](decentralized/nmpc/multi-agent-decentralized.gif) |
