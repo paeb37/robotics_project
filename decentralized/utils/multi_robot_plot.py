@@ -12,7 +12,7 @@ import numpy as np
 
 def plot_robot_and_obstacles(robot, obstacles, robot_radius, num_steps, sim_time, filename):
     fig = plt.figure()
-    ax = fig.add_subplot(111, autoscale_on=False, xlim=(0, 10), ylim=(0, 10))
+    ax = fig.add_subplot(111, autoscale_on=False, xlim=(0, 100), ylim=(0, 100))
     ax.set_aspect('equal')
     ax.grid()
     line, = ax.plot([], [], '--r')

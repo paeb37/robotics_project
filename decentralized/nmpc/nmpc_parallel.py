@@ -13,11 +13,11 @@ from numba import cuda
 import math
 
 
-SIM_TIME = 8.
+SIM_TIME = 20.
 TIMESTEP = 0.1
 NUMBER_OF_TIMESTEPS = int(SIM_TIME/TIMESTEP)
-ROBOT_RADIUS = 0.5
-VMAX = 2
+ROBOT_RADIUS = 2
+VMAX = 10
 VMIN = 0.2
 
 # collision cost parameters
@@ -35,7 +35,7 @@ def simulate(filename):
     print("In here uiefdjkn")
     obstacles = create_obstacles(SIM_TIME, NUMBER_OF_TIMESTEPS)
 
-    start = np.array([5, 5])
+    start = np.array([50, 50])
     p_desired = np.array([5, 5])
 
     robot_state = start

@@ -9,7 +9,6 @@ from utils.create_obstacles import create_obstacles
 import numpy as np
 from scipy.optimize import minimize, Bounds
 import time
-from numba import njit, prange
 
 SIM_TIME = 8.
 TIMESTEP = 0.1
@@ -92,76 +91,36 @@ def tracking_cost(x, xref):
     return np.linalg.norm(x-xref)
 
 
-# def total_collision_cost(robot, obstacles):
-#     total_cost = 0
-#     for i in range(HORIZON_LENGTH):
-#         for j in range(len(obstacles)):
-#             obstacle = obstacles[j]
-#             rob = robot[2 * i: 2 * i + 2]
-#             obs = obstacle[2 * i: 2 * i + 2]
-#             total_cost += collision_cost(rob, obs)
-#     return total_cost
-
-@njit(parallel=True)
 def total_collision_cost(robot, obstacles):
-    """
-    Calculate the total collision cost between the robot and obstacles
-    using parallel processing.
-    """
-    total_cost = 0.0
-    num_obstacles = obstacles.shape[0]
-
-    for i in prange(HORIZON_LENGTH):
-        rob = robot[2 * i: 2 * i + 2]
-        for j in range(num_obstacles):
-            obs = obstacles[j, 2 * i: 2 * i + 2]
+    total_cost = 0
+    for i in range(HORIZON_LENGTH):
+        for j in range(len(obstacles)):
+            obstacle = obstacles[j]
+            rob = robot[2 * i: 2 * i + 2]
+            obs = obstacle[2 * i: 2 * i + 2]
             total_cost += collision_cost(rob, obs)
-
     return total_cost
 
-@njit
+
 def collision_cost(x0, x1):
     """
-    Cost of collision between two robot states.
+    Cost of collision between two robot_state
     """
     d = np.linalg.norm(x0 - x1)
-    return Qc / (1 + np.exp(kappa * (d - 2 * ROBOT_RADIUS)))
+    cost = Qc / (1 + np.exp(kappa * (d - 2*ROBOT_RADIUS)))
+    return cost
 
-# def collision_cost(x0, x1):
-#     """
-#     Cost of collision between two robot_state
-#     """
-#     d = np.linalg.norm(x0 - x1)
-#     cost = Qc / (1 + np.exp(kappa * (d - 2*ROBOT_RADIUS)))
-#     return cost
-
-
-# def predict_obstacle_positions(obstacles):
-#     obstacle_predictions = []
-#     for i in range(np.shape(obstacles)[1]):
-#         obstacle = obstacles[:, i]
-#         obstacle_position = obstacle[:2]
-#         obstacle_vel = obstacle[2:]
-#         u = np.vstack([np.eye(2)] * HORIZON_LENGTH) @ obstacle_vel
-#         obstacle_prediction = update_state(obstacle_position, u, NMPC_TIMESTEP)
-#         obstacle_predictions.append(obstacle_prediction)
-#     return obstacle_predictions
 
 def predict_obstacle_positions(obstacles):
-    """
-    Predict the future positions of obstacles.
-    """
-    num_obstacles = obstacles.shape[1]
-    predictions = np.empty((num_obstacles, 2 * HORIZON_LENGTH))
-
-    for i in range(num_obstacles):
-        obstacle_position = obstacles[:2, i]
-        obstacle_vel = obstacles[2:, i]
+    obstacle_predictions = []
+    for i in range(np.shape(obstacles)[1]):
+        obstacle = obstacles[:, i]
+        obstacle_position = obstacle[:2]
+        obstacle_vel = obstacle[2:]
         u = np.vstack([np.eye(2)] * HORIZON_LENGTH) @ obstacle_vel
-        predictions[i] = update_state(obstacle_position, u, NMPC_TIMESTEP)
-
-    return predictions
-
+        obstacle_prediction = update_state(obstacle_position, u, NMPC_TIMESTEP)
+        obstacle_predictions.append(obstacle_prediction)
+    return obstacle_predictions
 
 
 def update_state(x0, u, timestep):
