@@ -1,45 +1,23 @@
 # Multi-Agent path planning in Python
 
-Commands to run the KKT code:
+## Modified KKT System
 
+Run the following to test the new KKT code:
+
+```bash
 cd ./decentralized
 python3 decentralized.py -f kkt/new_kkt.mp4 -m kkt
-
-## Introduction
-
-This repository consists of the implementation of some multi-agent path-planning algorithms in Python. The following algorithms are currently implemented:
-
-- [Multi-Agent path planning in Python](#multi-agent-path-planning-in-python)
-  - [Introduction](#introduction)
-  - [Dependencies](#dependencies)
-  - [Centralized Solutions](#centralized-solutions)
-    - [Prioritized Safe-Interval Path Planning](#prioritized-safe-interval-path-planning)
-      - [Execution](#execution)
-      - [Results](#results)
-      - [Reference](#reference)
-    - [Conflict Based Search](#conflict-based-search)
-      - [Execution](#execution-1)
-      - [Results](#results-1)
-      - [Reference](#reference-1)
-    - [Post-Processing](#post-processing)
-      - [Post-processing with TPG](#post-processing-with-tpg)
-  - [Decentralized solutions](#decentralized-solutions)
-    - [Velocity obstacles](#velocity-obstacles)
-      - [Execution](#execution-2)
-      - [Results](#results-2)
-      - [References](#references)
-    - [Nonlinear Model-Predictive Control](#nonlinear-model-predictive-control)
-      - [Execution](#execution-3)
-      - [Results](#results-3)
-      - [References](#references-1)
+```
 
 ## Dependencies
 
-Install the necessary dependencies by running.
+Install the necessary dependencies by running the following:
 
 ```shell
 python3 -m pip install -r requirements.txt
 ```
+
+## Initial Methods
 
 ## Centralized Solutions
 
