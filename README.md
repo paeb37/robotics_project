@@ -21,9 +21,9 @@ python3 decentralized.py -f kkt/new_kkt.mp4 -m kkt
 
 #### Results
 
-|            Test 1 (Before Optimization)            |            Test 2 (Before Optimization)            |
-|:--------------------------------------:|:--------------------------------------:|
-| ![Success](./decentralized/kkt/new_kkt.gif) | ![Success](./decentralized/kkt/new_kkt.gif)|
+|            Test 1 (With Optimization)            |
+|:--------------------------------------:|
+| ![Success](./decentralized/kkt/new_kkt.gif) | 
 
 ## Parallelized Decentralized Code
 
