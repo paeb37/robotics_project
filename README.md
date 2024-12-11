@@ -16,11 +16,10 @@ python3 ./robotics_project/decentralized/decentralized.py -m nmpc -f output_anim
 ```
 
 #### Results
-4 obstacles: 
-![Success](./decentralized/nmpc/4-obstacles.gif)
 
-100 obstacles: 
-![Success](./decentralized/nmpc/100-obstacles.gif)
+|            4 Obstacles            |            100 Obstacles            |
+|:--------------------------------------:|:--------------------------------------:|
+| ![Success](./decentralized/nmpc/4-obstacles.gif) | ![Success](./decentralized/nmpc/100-obstacles.gif)|
 
 ## Modified KKT System
 
