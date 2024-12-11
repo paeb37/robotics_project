@@ -6,6 +6,7 @@ Install the necessary dependencies by running the following:
 
 ```shell
 python3 -m pip install -r requirements.txt
+brew install ffmpeg
 ```
 
 ## Parallelized Total Cost Computation
@@ -34,7 +35,7 @@ python3 decentralized.py -f kkt/new_kkt.mp4 -m kkt
 
 #### Results
 
-|            Test 1 (With Optimization)            |
+|            Test (With Optimization)            |
 |:--------------------------------------:|
 | ![Success](./decentralized/kkt/new_kkt.gif) | 
 
