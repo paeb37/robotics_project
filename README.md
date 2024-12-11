@@ -9,18 +9,25 @@ python3 -m pip install -r requirements.txt
 brew install ffmpeg
 ```
 
-## Parallelized Total Cost Computation
-
+## Parallelized Decentralized NMPC
 #### Execution
 ```bash
 python3 ./robotics_project/decentralized/decentralized.py -m nmpc -f output_animation_file_name.gif
 ```
 
+### Parallelized Total Cost Computation
 #### Results
 
 |            4 Obstacles            |            100 Obstacles            |
 |:--------------------------------------:|:--------------------------------------:|
 | ![Success](./decentralized/nmpc/4-obstacles.gif) | ![Success](./decentralized/nmpc/100-obstacles.gif)|
+
+### Parallelized Obstacle Prediction
+#### Results
+|            Test (With Parallelization)            |
+|:--------------------------------------:|
+| ![Success](./decentralized/nmpc/parallel-prediction.gif) | 
+
 
 ## Modified KKT System
 
